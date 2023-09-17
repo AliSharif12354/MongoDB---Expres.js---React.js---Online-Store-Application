@@ -15,49 +15,53 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+
+
 async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
-  }
+    console.log("Connected successfully to server");
+
 }
 
 run().catch(console.dir);
+
+const database = client.db("store");
+const products = database.collection("Products");
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 
-app.get('/message', (req, res) => {
-    res.json({ message: "Hello from server!" });
-});
-
-app.use('/NameSearch', (req, res, next) => {
+app.use('/NameSearch', async (req, res, next) => {
     const name = req.query.name.toLowerCase();
     const inStock = req.query.inStock;
 
-    let result = data.filter(data => data.name.toLowerCase().includes(name));
+    //Case insensitive Regex
+    const regexName = new RegExp(name, "i");
+    const found = await products.find({name : {$regex: regexName}}).toArray(function(err, res){
+		if(err) throw err;
+		console.log(res);
+    })
 
     if (inStock === 'true') {
-        result = result.filter(data => data.stock > 0);
+        found = found.filter(item => item.stock > 0);
     }
 
-    res.json(result);
+    res.json(found);
     next();
 });
 
-app.use('/getProduct', (req, res, next) => {
+app.use('/getProduct', async (req, res, next) => {
     const id = Number(req.query.id);
-    const result = data.filter(data => data.id === id);
+    const found = await products.findOne({id : id}, function(err, res){
+		if(err) throw err;
+		console.log(res);
+    })
+    console.log(found)
     if (req.headers.accept === 'application/json') {
-        res.json(result);
+        res.json(found);
         next();
     } else {
         fs.readFile(path.resolve("./Lab1/index.html"), "utf8", (err, data) => {
@@ -68,10 +72,10 @@ app.use('/getProduct', (req, res, next) => {
             return res.send(data.replace(
                 '<div id="root"></div>',
                 `<div id="root">
-                    <h1>${result[0].name}</h1>
-                    <p>Price: ${result[0].price}</p>
-                    <p>Stock: ${result[0].stock}</p>
-                    <p>Package Dimensions: ${result[0].dimensions.x} x ${result[0].dimensions.y} x ${result[0].dimensions.z}</p>
+                    <h1>${found[0].name}</h1>
+                    <p>Price: ${found.price}</p>
+                    <p>Stock: ${found.stock}</p>
+                    <p>Package Dimensions: ${found.dimensions.x} x ${found.dimensions.y} x ${found.dimensions.z}</p>
                 </div>`
             ));
         });
@@ -91,18 +95,20 @@ app.post('/Create', (req, res) => {
         },
         stock: Number(req.body.stock)
     }
-    data.push(product);
-    fs.writeFile('products.json', JSON.stringify(data), err => {
-        if (err) { throw err; }
-    });
-    res.json(product);
+
+    result = products.insertOne(product, function(err, res){
+        if(err) throw err;
+        console.log(res);
+    })
+    
+    res.json(result);
     // const newProduct = req.body;
     // data.push(newProduct);
     // res.json(data);
     // next();
 });
 
-app.post('/addReview', (req, res) => {
+app.post('/addReview', async (req, res) => {
     const id = Number(req.body.id)
     const rating = Number(req.body.rating)
 
@@ -111,22 +117,33 @@ app.post('/addReview', (req, res) => {
     }
     else {
         let newReviews = []
-        data.map(d => {
-            if (d.id === id) {
-                if(d.reviews === undefined) d.reviews = []
-                d.reviews.push({ rating: rating })
-                newReviews = d.reviews
-            }
+        const found = await products.findOne({id : id}, function(err, res){
+            if(err) throw err;
+            console.log(res);
         })
+
+        if(found.reviews === undefined) found.reviews = [];
+        found.reviews.push({ rating: rating })
+
+
+        const updated = await products.updateOne({id: id}, {$set: {reviews: found.reviews}}, function(err,result){
+            if(err) throw err;
+            console.log(res);
+        })
+
+        console.log(updated)
     
         res.json(newReviews);
     }
 })
 
-app.use('/getReviews', (req, res) => {
-    console.log('in getReviews')
+app.use('/getReviews', async (req, res) => {
     const id = Number(req.query.id);
-    const result = data.filter(data => data.id === id)[0].reviews;
+    const found = await products.findOne({id : id}, function(err, res){
+		if(err) throw err;
+		console.log(res);
+    })
+    result = found.reviews;
     res.json(result);
 })
 

@@ -34,7 +34,7 @@ function Product(props) {
         }
 
         const productData = await response.json();
-        setProduct(productData[0]);
+        setProduct(productData);
       } catch (error) {
         console.error("Error:", error);
       }
