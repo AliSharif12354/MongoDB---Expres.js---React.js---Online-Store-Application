@@ -9,6 +9,8 @@ import Create from './assets/Routes/Create'
 import './index.css'
 import Product from './assets/Routes/Product'
 import ProductReviews from './assets/Routes/ProductReviews'
+import Orders from './assets/Routes/Orders'
+import OrderSpecific from './assets/Routes/OrderSpecific'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -20,6 +22,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/Create" element={<Create/>}/>
           <Route path="/product/:id" element={<Product/>}/>
           <Route path="/product/:id/reviews" element={<ProductReviews/>}/>
+          <Route path="/Orders" element={<Orders/>}/>
+          <Route path="/Orders/:id" element={<OrderSpecific/>}/>
         </Routes>
     </BrowserRouter>
   </React.StrictMode>,
